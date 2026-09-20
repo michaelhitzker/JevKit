@@ -1,5 +1,10 @@
 # JevKit
 
+[![Latest release](https://img.shields.io/github/v/release/michaelhitzker/JevKit)](https://github.com/michaelhitzker/JevKit/releases/latest)
+[![CI](https://github.com/michaelhitzker/JevKit/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/michaelhitzker/JevKit/actions/workflows/ci.yml?query=branch%3Amain)
+[![Swift 6.0+](https://img.shields.io/badge/Swift-6.0%2B-orange)](Package.swift)
+[![MIT License](https://img.shields.io/badge/License-MIT-blue)](LICENSE)
+
 A lightweight, strongly typed Swift client for TypeSafe’s Jev / System One API. Ask yes/no questions, choose between enum cases, or score an input against a rubric—then use ordinary Swift to decide what happens next.
 
 JevKit preserves the full probability distribution alongside each result. It uses `async/await`, supports Swift 6 strict concurrency, and has no third-party dependencies.
@@ -39,7 +44,7 @@ JevKit uses Swift Package Manager. Add the **JevKit** library product to the tar
 
 1. Choose **File → Add Package Dependencies…**.
 2. Enter `https://github.com/michaelhitzker/JevKit.git`.
-3. Select the **Branch** dependency rule, enter `main`, then choose **Add Package**.
+3. Select **Up to Next Major Version**, enter `0.1.0`, then choose **Add Package**.
 4. Add the **JevKit** product to your app target.
 
 For a local checkout, choose **Add Local…** and select the `JevKit` directory instead.
@@ -56,7 +61,7 @@ let package = Package(
     name: "MyApp",
     platforms: [.macOS(.v13), .iOS(.v16)],
     dependencies: [
-        .package(url: "https://github.com/michaelhitzker/JevKit.git", branch: "main")
+        .package(url: "https://github.com/michaelhitzker/JevKit.git", from: "0.1.0")
     ],
     targets: [
         .executableTarget(
@@ -67,9 +72,9 @@ let package = Package(
 )
 ```
 
-Until the first tagged release, install from `main`. Branch updates can include breaking changes; commit your application’s `Package.resolved` to retain the resolved revision. Once a `0.1.0` release is tagged, you can replace `branch: "main"` with `from: "0.1.0"` (or select **Up to Next Major Version** in Xcode).
+The latest published version is available on the [releases page](https://github.com/michaelhitzker/JevKit/releases/latest). Commit your application’s `Package.resolved` to retain the resolved version. To follow unreleased development, replace `from: "0.1.0"` with `branch: "main"`; branch updates can include breaking changes.
 
-To use a sibling checkout immediately, replace the `.package(url:branch:)` entry with:
+To use a sibling checkout immediately, replace the `.package(url:from:)` entry with:
 
 ```swift
 .package(path: "../JevKit")
