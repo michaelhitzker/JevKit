@@ -1,20 +1,14 @@
 # Changelog
 
-## 0.1.0 — initial implementation (unreleased)
+## 0.1.0 — 2026-09-20
 
-- Dependency-free Swift 6 library with strict concurrency and FoundationNetworking support.
-- Noul, Choice, and Score runtime questions, structured state/instructions/criteria, complete probability distributions.
-- Immutable typed descriptors and explicit `JevSchema` assessments.
-- Actor client, injectable transport, validation, bounded retries, Retry-After, cancellation, and safe observability.
-- Credential-redacted diagnostics and redirect-rejecting default transport.
-- Explicit credential loading from named environment variables, Info.plist, and local XML or binary plist files, alongside direct API-key initialization.
-- SwiftUI example app with offline fixtures, selectable live credential sources, and runnable Noul, Choice, Score, and typed assessment examples.
-- Swift Testing unit tests, opt-in live contract test, and local URLSession integration tests.
-- Issue-triage CLI, DocC catalog, and macOS/Linux CI.
-
-### 0.2.0 candidates
-
-- An optional schema macro target, generating the existing protocol rather than changing the base library.
-- Model discovery through the documented models endpoint.
-- Additional authenticated contract fixtures once early-access credentials are available.
-- API evolution based on real usage; no speculative streaming, batching, or authentication endpoints.
+- Initial Commit (`514dc20`)
+- initial commit (`94e4e20`)
+- implement example app, extend api key provision (`dade0ac`)
+- implement example app (`cdae07b`)
+- improve example app (`c0f15ad`)
+- polish readme (`9d07a6e`)
+- Set up tested version publishing and pull request CI (`3e283ff`)
+- Bump actions/checkout from 4.4.0 to 7.0.1 (`3116653`)
+- Bump swift-actions/setup-swift (`e3a1679`)
+- update md files (`bf4b189`)

@@ -32,6 +32,7 @@ jobs:
         with:
           swift-version: ${{ matrix.swift }}
       - run: swift --version
+      - run: python3 Scripts/test-release.py
       - run: swift build -Xswiftc -warnings-as-errors
       - run: swift test -Xswiftc -warnings-as-errors
       - run: python3 Scripts/test-http.py

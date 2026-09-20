@@ -8,6 +8,7 @@ Run:
 swift build -Xswiftc -warnings-as-errors
 swift test -Xswiftc -warnings-as-errors
 python3 Scripts/test-http.py
+python3 Scripts/test-release.py
 bash Scripts/build-docs.sh
 ```
 
@@ -32,20 +33,29 @@ Swift Package Manager installs releases directly from Git tags; no package-regis
 credentials or separate package upload are needed.
 
 1. Prepare a pull request updating `VERSION` to the desired stable `major.minor.patch`
-   version, and add a matching `##` heading in `CHANGELOG.md` with the release date.
-   Remove `unreleased` from that heading. Update README installation examples as needed.
+   version. Update README installation examples as needed. `CHANGELOG.md` is generated
+   during publication; do not maintain release entries by hand.
 2. Merge the pull request after CI passes.
 3. Open **Actions → Publish version → Run workflow** on GitHub, select **main**, and
    enter the exact version (for example, `0.1.0`, without a `v` prefix).
 4. The workflow validates the metadata and reruns the full CI matrix. Only after
-   success does it create the version tag at the tested commit and publish a GitHub
-   release with generated release notes.
+   success does it generate and commit `CHANGELOG.md`, atomically push that commit
+   to `main` with the version tag, and publish a GitHub release using the same notes.
+   The tagged commit adds only the generated changelog to the tested commit.
 
 The workflow uses GitHub's built-in token with write access limited to the publish
 job. No personal access token or TypeSafe API key is required. It rejects runs from
-other branches, malformed versions, mismatched metadata, and existing tags.
+other branches, malformed versions, mismatched metadata, existing tags, non-increasing
+versions, and runs whose tested commit is no longer the tip of `main`.
+
+The changelog is rebuilt from stable `major.minor.patch` tags reachable from the
+tested commit. Each section lists non-merge commit subjects and short hashes since
+the preceding version tag; the first release includes all earlier commits. Release
+bookkeeping commits are omitted. Write meaningful commit subjects. The workflow
+requires permission to push to `main`; repository rules must allow the release bot
+or publication will fail without advancing either ref.
 
 If publication fails after creating the tag, inspect the run and the tag's commit,
-then finish the GitHub release from that existing tag. Do not move a published tag.
+then finish the GitHub release from that existing tag using its changelog section. Do not move a published tag.
 Live API contract verification remains a separate, opt-in check requiring authorized
 credentials; it is not performed by the release workflow.
