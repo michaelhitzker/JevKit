@@ -12,3 +12,4 @@
 - Bump actions/checkout from 4.4.0 to 7.0.1 (`3116653`)
 - Bump swift-actions/setup-swift (`e3a1679`)
 - update md files (`bf4b189`)
+- update release ci (`4193a99`)
