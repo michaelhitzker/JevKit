@@ -1,127 +1,232 @@
 import SwiftUI
 
 struct ContentView: View {
+    let settings: ExampleSettings
+    @State private var showingSettings = false
     @State private var selection: Example? = .noul
 
     var body: some View {
         NavigationSplitView {
-            List(Example.allCases, selection: $selection) { example in
-                NavigationLink(value: example) {
-                    Label(example.rawValue, systemImage: example.symbol)
+            List(selection: $selection) {
+                Section("Explore the SDK") {
+                    ForEach(Example.allCases) { example in
+                        NavigationLink(value: example) {
+                            Label {
+                                VStack(alignment: .leading, spacing: 3) {
+                                    Text(example.title)
+                                    Text(example.rawValue)
+                                        .font(.caption).foregroundStyle(.secondary)
+                                }
+                                .padding(.vertical, 5)
+                            } icon: {
+                                Image(systemName: example.symbol)
+                            }
+                        }
+                    }
                 }
             }
-            .navigationTitle("JevKit Examples")
-            .navigationSplitViewColumnWidth(min: 200, ideal: 220)
+            .safeAreaInset(edge: .bottom) {
+                Button { showingSettings = true } label: {
+                    Label("Settings", systemImage: "gearshape")
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(12)
+                }
+                .buttonStyle(.plain)
+            }
+            .navigationTitle("JevKit")
+            .navigationSplitViewColumnWidth(min: 210, ideal: 240)
         } detail: {
             if let selection {
-                ExampleDetail(example: selection)
-                    .id(selection)
+                ExampleDetail(example: selection, settings: settings, showingSettings: $showingSettings).id(selection)
             } else {
-                ContentUnavailableView("Choose an example", systemImage: "sidebar.left")
+                ContentUnavailableView("Choose an example", systemImage: "sidebar.left",
+                                       description: Text("Explore yes/no decisions, choices, and scores."))
             }
         }
+        .sheet(isPresented: $showingSettings) {
+            ExampleSettingsView(settings: settings)
+        }
+    }
+}
+
+private struct ExampleSettingsView: View {
+    @Bindable var settings: ExampleSettings
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section("API key") {
+                    SecureField("API key", text: $settings.apiKey)
+                        .autocorrectionDisabled()
+                    Text("Applies to every example. You can edit or replace your key here. Changes take effect on the next run.")
+                        .foregroundStyle(.secondary)
+                    Text("Your key is saved securely in Keychain and restored when you reopen the app. Clear the field to remove the saved key.")
+                        .font(.callout).foregroundStyle(.secondary)
+                }
+                if let error = settings.persistenceError {
+                    Section {
+                        Label(error, systemImage: "exclamationmark.triangle")
+                            .foregroundStyle(.red)
+                        Button("Retry saving key") { settings.persistKey() }
+                    }
+                }
+                Section {
+                    Text("Running an example sends the issue to TypeSafe and may incur charges.")
+                        .font(.callout).foregroundStyle(.secondary)
+                }
+            }
+            .formStyle(.grouped)
+            .navigationTitle("Settings")
+            .toolbar {
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Done") { dismiss() }
+                }
+            }
+        }
+        .frame(minWidth: 420, idealWidth: 500, minHeight: 400, idealHeight: 520)
     }
 }
 
 private struct ExampleDetail: View {
     let example: Example
-    @State private var model = ExampleModel()
+    @Binding var showingSettings: Bool
+    @State private var model: ExampleModel
+
+    init(example: Example, settings: ExampleSettings, showingSettings: Binding<Bool>) {
+        self.example = example
+        _showingSettings = showingSettings
+        _model = State(initialValue: ExampleModel(settings: settings))
+    }
 
     var body: some View {
-        Form {
-            Section {
-                Text(example.explanation).font(.headline)
-                Text("Jev supplies judgment. Swift decides what to do.")
-                    .foregroundStyle(.secondary)
-            }
-            Section("Request") {
-                Toggle("Use live API", isOn: $model.live)
-                if model.live {
-                    CredentialFields(mode: $model.credentialMode, directKey: $model.directKey, environmentVariable: $model.environmentVariable)
-                } else {
-                    Label("Offline fixture · no API key or network needed", systemImage: "airplane")
-                    Text("Results are fixed demonstration data, regardless of the text below.")
-                        .font(.callout).foregroundStyle(.secondary)
-                }
-                TextEditor(text: $model.text)
-                    .frame(minHeight: 110)
-                    .accessibilityLabel("Issue text")
-                if example != .score {
-                    LabeledContent("Decision threshold", value: model.threshold.formatted(.percent))
-                    Slider(value: $model.threshold, in: 0...1, step: 0.01)
-                        .accessibilityLabel("Decision threshold")
-                    Text("Used for the Noul yes decision and Choice confidence gate. Run again after changing it.")
-                        .font(.caption).foregroundStyle(.secondary)
-                }
-            }
-            .disabled(model.running)
-            Section {
-                HStack {
-                    Button(model.live ? "Evaluate with Jev" : "Run demo") { model.run(example) }
-                        .buttonStyle(.borderedProminent)
-                        .disabled(model.running || model.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
-                    if model.running {
-                        ProgressView().controlSize(.small)
-                        Button("Cancel") { model.cancel() }
+        ScrollView {
+            VStack(alignment: .leading, spacing: 28) {
+                ExampleHeader(example: example)
+                RequestView(example: example, model: model, showingSettings: $showingSettings)
+                ResultsView(sections: model.sections, metadata: model.metadata, running: model.running)
+                Divider()
+                DisclosureGroup("View Swift code") {
+                    ScrollView(.horizontal) {
+                        Text(example.code)
+                            .font(.system(.callout, design: .monospaced))
+                            .textSelection(.enabled)
+                            .padding(.vertical, 12)
+                            .frame(maxWidth: .infinity, alignment: .leading)
                     }
                 }
-                if let status = model.status {
-                    Label(status, systemImage: "exclamationmark.triangle")
-                        .foregroundStyle(.red).textSelection(.enabled)
-                }
+                .font(.subheadline)
             }
-            ForEach(model.sections) { section in
-                ResultSectionView(section: section)
-            }
-            if let metadata = model.metadata {
-                Section("Last run") {
-                    Text(metadata).font(.caption).foregroundStyle(.secondary)
-                    Text("Results reflect the input and threshold at the time of the last run.")
-                        .font(.caption).foregroundStyle(.secondary)
-                }
-            }
-            Section("Swift usage") {
-                ScrollView(.horizontal) {
-                    Text(example.code)
-                        .font(.system(.callout, design: .monospaced))
-                        .textSelection(.enabled)
-                        .padding(.vertical, 4)
-                }
-            }
+            .padding(28)
+            .frame(maxWidth: 760, alignment: .leading)
+            .frame(maxWidth: .infinity)
         }
-        .formStyle(.grouped)
-        .navigationTitle(example.rawValue)
+        .navigationTitle(example.title)
         .onDisappear { model.cancel() }
     }
 }
 
-private struct CredentialFields: View {
-    @Binding var mode: CredentialMode
-    @Binding var directKey: String
-    @Binding var environmentVariable: String
+private struct ExampleHeader: View {
+    let example: Example
 
     var body: some View {
-        Picker("API-key source", selection: $mode) {
-            ForEach(CredentialMode.allCases) { mode in
-                Text(mode.rawValue).tag(mode)
+        VStack(alignment: .leading, spacing: 8) {
+            Text(example.rawValue).font(.subheadline.weight(.medium)).foregroundStyle(.tint)
+            Text(example.question).font(.largeTitle.bold())
+            Text(example.explanation).foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+    }
+}
+
+private struct RequestView: View {
+    let example: Example
+    @Bindable var model: ExampleModel
+    @Binding var showingSettings: Bool
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            Text("1. Try an issue").font(.title3.bold())
+            VStack(alignment: .leading, spacing: 8) {
+                Text("Issue description").font(.subheadline.weight(.medium))
+                TextEditor(text: $model.text)
+                    .font(.body)
+                    .scrollContentBackground(.hidden)
+                    .padding(10)
+                    .frame(height: 110)
+                    .background(.quaternary.opacity(0.4), in: RoundedRectangle(cornerRadius: 10))
+                    .overlay(RoundedRectangle(cornerRadius: 10).stroke(.quaternary))
+                    .accessibilityLabel("Issue description")
+                    .disabled(model.running)
+            }
+            if example != .score {
+                DisclosureGroup("Decision settings · \(model.threshold.formatted(.percent)) threshold") {
+                    VStack(alignment: .leading, spacing: 8) {
+                        Slider(value: $model.threshold, in: 0...1, step: 0.01)
+                            .accessibilityLabel("Decision threshold")
+                        Text(example == .noul
+                             ? "Label as a bug when the yes probability reaches this threshold. Run again to apply changes."
+                             : "Use this threshold to accept a choice with enough confidence. Run again to apply changes.")
+                            .font(.caption).foregroundStyle(.secondary)
+                        if example == .assessment {
+                            Text("Also applies to the bug decision. Escalation uses a separate, fixed 95% confidence rule.")
+                                .font(.caption).foregroundStyle(.secondary)
+                        }
+                    }
+                    .padding(.top, 8)
+                }
+                .font(.subheadline)
+                .disabled(model.running)
+            }
+            HStack(spacing: 12) {
+                Button { model.run(example) } label: {
+                    Label("Run example", systemImage: "play.fill")
+                }
+                .buttonStyle(.borderedProminent)
+                .controlSize(.large)
+                .disabled(model.running || model.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                if model.running {
+                    ProgressView().controlSize(.small)
+                    Button("Cancel") { model.cancel() }
+                }
+            }
+            if let status = model.status {
+                Label(status, systemImage: "exclamationmark.triangle")
+                    .font(.callout).foregroundStyle(.red).textSelection(.enabled)
+                if model.needsAPIKey {
+                    Button("Open Settings") { showingSettings = true }
+                        .buttonStyle(.borderless)
+                }
             }
         }
-        switch mode {
-        case .direct:
-            SecureField("API key", text: $directKey)
-                .autocorrectionDisabled()
-            Text("Passed directly to JevConfiguration(apiKey:). Kept in memory for this screen only.")
-        case .environment:
-            TextField("Environment variable", text: $environmentVariable)
-                .autocorrectionDisabled()
-            Text("Set this variable in your private Xcode scheme’s Run environment. JEV_API_KEY and TYPESAFE_API_KEY are common choices.")
-        case .infoPlist:
-            Text("Add a JEV_API_KEY string entry to the app target’s Info settings. The SDK reads Bundle.main.infoDictionary.")
-        case .plist:
-            Text("Add JevSecrets.plist to the app’s resources with a JEV_API_KEY string entry. Keep the file out of source control.")
+    }
+}
+
+private struct ResultsView: View {
+    let sections: [ResultSection]
+    let metadata: String?
+    let running: Bool
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            Text("2. See the decision").font(.title3.bold())
+            if sections.isEmpty {
+                Label(running ? "Evaluating the issue…" : "Run the example to see the result here.",
+                      systemImage: "sparkle.magnifyingglass")
+                    .foregroundStyle(.secondary)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(20)
+                    .background(.quaternary.opacity(0.3), in: RoundedRectangle(cornerRadius: 12))
+            } else {
+                ForEach(sections) { section in
+                    ResultSectionView(section: section)
+                }
+                if let metadata {
+                    Text("Last run: \(metadata). Results use the input and settings from that run.")
+                        .font(.caption).foregroundStyle(.secondary)
+                }
+            }
         }
-        Text("Live runs send the issue to TypeSafe and may incur charges. Retries are disabled. Bundled keys are extractable; these options are for local development.")
-            .font(.callout).foregroundStyle(.secondary)
     }
 }
 
@@ -129,22 +234,33 @@ private struct ResultSectionView: View {
     let section: ResultSection
 
     var body: some View {
-        Section(section.id) {
+        VStack(alignment: .leading, spacing: 10) {
+            Text(section.id).font(.caption.weight(.semibold)).foregroundStyle(.secondary)
             Text(section.headline).font(.title2.bold())
-            Text(section.detail).foregroundStyle(.secondary)
-            ForEach(section.probabilities) { probability in
-                VStack(alignment: .leading, spacing: 6) {
-                    LabeledContent(probability.id, value: probability.value.formatted(.percent.precision(.fractionLength(1))))
-                    ProgressView(value: probability.value)
-                        .accessibilityLabel(probability.id)
-                        .accessibilityValue(probability.value.formatted(.percent))
+            Text(section.detail).font(.callout).foregroundStyle(.secondary)
+            if !section.probabilities.isEmpty {
+                DisclosureGroup("Probability breakdown") {
+                    VStack(spacing: 14) {
+                        ForEach(section.probabilities) { probability in
+                            VStack(alignment: .leading, spacing: 6) {
+                                LabeledContent(probability.id, value: probability.value.formatted(.percent.precision(.fractionLength(1))))
+                                ProgressView(value: probability.value)
+                                    .accessibilityLabel(probability.id)
+                                    .accessibilityValue(probability.value.formatted(.percent))
+                            }
+                        }
+                    }
+                    .padding(.top, 12)
                 }
-                .padding(.vertical, 4)
+                .font(.subheadline)
             }
         }
+        .padding(20)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(.quaternary.opacity(0.3), in: RoundedRectangle(cornerRadius: 12))
     }
 }
 
 #Preview {
-    ContentView()
+    ContentView(settings: ExampleSettings())
 }

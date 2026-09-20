@@ -14,42 +14,50 @@ struct ResultSection: Identifiable {
     let probabilities: [Probability]
 }
 
-enum CredentialMode: String, CaseIterable, Identifiable {
-    case direct = "Direct key", environment = "Environment", infoPlist = "Info.plist", plist = "JevSecrets.plist"
-    var id: Self { self }
+@MainActor @Observable
+final class ExampleSettings {
+    var apiKey = "" {
+        didSet { persistKey() }
+    }
+    private(set) var persistenceError: String?
+    private let keyStore: any APIKeyStoring
+
+    init(keyStore: any APIKeyStoring = KeychainAPIKeyStore()) {
+        self.keyStore = keyStore
+        do {
+            apiKey = try keyStore.load()
+        } catch {
+            persistenceError = "Could not load your saved API key. \(error.localizedDescription)"
+        }
+    }
+
+    func persistKey() {
+        do {
+            try keyStore.save(apiKey.trimmingCharacters(in: .whitespacesAndNewlines))
+            persistenceError = nil
+        } catch {
+            persistenceError = "Could not update the saved API key. Your changes apply only to this session. \(error.localizedDescription)"
+        }
+    }
 }
 
 @MainActor @Observable
 final class ExampleModel {
+    let settings: ExampleSettings
     var text = "Every production user sees a crash at launch after upgrading to version 4.2. The previous version worked."
-    var live = false
-    var credentialMode: CredentialMode = .environment
-    var directKey = ""
-    var environmentVariable = "JEV_API_KEY"
     var threshold = 0.9
     private(set) var sections: [ResultSection] = []
     private(set) var metadata: String?
     private(set) var status: String?
     private(set) var running = false
+    private(set) var needsAPIKey = false
+    private let transport: any JevTransport
     private var task: Task<Void, Never>?
     private var generation = UUID()
 
-    private func liveConfiguration() throws -> JevConfiguration {
-        let source: JevAPIKeySource
-        switch credentialMode {
-        case .direct:
-            return JevConfiguration(apiKey: directKey, timeout: .seconds(20), retryPolicy: .init(maximumRetries: 0))
-        case .environment:
-            source = .environment(environmentVariable)
-        case .infoPlist:
-            source = .infoPlist()
-        case .plist:
-            guard let url = Bundle.main.url(forResource: "JevSecrets", withExtension: "plist") else {
-                throw JevError.invalidConfiguration("Add JevSecrets.plist to the example app resources with a JEV_API_KEY string entry.")
-            }
-            source = .plist(url: url)
-        }
-        return try JevConfiguration(apiKeySource: source, timeout: .seconds(20), retryPolicy: .init(maximumRetries: 0))
+    init(settings: ExampleSettings = ExampleSettings(), transport: any JevTransport = URLSessionTransport()) {
+        self.settings = settings
+        self.transport = transport
     }
 
     func cancel() {
@@ -63,21 +71,22 @@ final class ExampleModel {
         cancel()
         let generation = generation
         let text = text
-        let live = live
+        let apiKey = settings.apiKey.trimmingCharacters(in: .whitespacesAndNewlines)
         let threshold = threshold
         sections = []
         metadata = nil
         status = nil
+        needsAPIKey = apiKey.isEmpty
+        guard !needsAPIKey else {
+            status = "Add an API key in Settings before running an example."
+            return
+        }
+        let configuration = JevConfiguration(apiKey: apiKey, timeout: .seconds(20), retryPolicy: .init(maximumRetries: 0))
         running = true
         task = Task {
             defer { if self.generation == generation { running = false; task = nil } }
             do {
-                let client: JevClient
-                if live {
-                    client = try JevClient(configuration: liveConfiguration())
-                } else {
-                    client = try JevClient(configuration: .init(apiKey: "offline-demo"), transport: DemoTransport(example: example))
-                }
+                let client = try JevClient(configuration: configuration, transport: transport)
                 var output: [ResultSection] = []
                 let metadata: JevMetadata
                 if example == .assessment {
@@ -99,7 +108,7 @@ final class ExampleModel {
                 try Task.checkCancellation()
                 guard self.generation == generation else { return }
                 sections = output
-                self.metadata = "\(live ? "Live" : "Fixed demo") · \(metadata.model) · \(metadata.latency)"
+                self.metadata = "\(metadata.model) · \(metadata.latency)"
             } catch {
                 guard self.generation == generation else { return }
                 status = error is CancellationError ? "Cancelled." : String(describing: error)
