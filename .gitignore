@@ -32,6 +32,7 @@ xcuserdata/
 !.env.sample
 !.env.template
 .netrc
+/Examples/ExampleApp/ExampleApp/JevSecrets.plist
 
 # Python caches from development scripts
 __pycache__/

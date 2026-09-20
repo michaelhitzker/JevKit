@@ -21,6 +21,12 @@ public actor JevClient {
         self.sleep = { try await Task.sleep(for: $0) }
     }
 
+    /// Loads a credential from the selected source, defaulting to `TYPESAFE_API_KEY`.
+    /// The credential is read and validated once, before any network activity.
+    public init(apiKeySource: JevAPIKeySource = .environment()) throws {
+        try self.init(configuration: JevConfiguration(apiKeySource: apiKeySource))
+    }
+
     /// Creates a configurable client with optional transport injection and privacy-safe observability.
     public init(configuration: JevConfiguration, transport: any JevTransport = URLSessionTransport(), logger: (any JevLogger)? = nil) throws {
         try configuration.validate()

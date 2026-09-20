@@ -38,6 +38,15 @@ public struct JevConfiguration: Sendable, CustomStringConvertible, CustomDebugSt
         self.model = model
         self.retryPolicy = retryPolicy
     }
+
+    /// Loads a credential once from an explicit source and validates the resulting settings.
+    /// Defaults to the `TYPESAFE_API_KEY` process environment variable.
+    public init(apiKeySource: JevAPIKeySource = .environment(),
+                baseURL: URL = URL(string: "https://api.typesafe.ai") ?? URL(fileURLWithPath: "/"),
+                timeout: Duration = .seconds(30), model: String = "jev-latest", retryPolicy: JevRetryPolicy = .init()) throws {
+        self.init(apiKey: try apiKeySource.resolve(), baseURL: baseURL, timeout: timeout, model: model, retryPolicy: retryPolicy)
+        try validate()
+    }
     /// Redacted description; endpoint/model may themselves contain caller-supplied secrets, so are omitted too.
     public var description: String { "JevConfiguration(apiKey: <redacted>)" }
     /// Redacted debugger description.

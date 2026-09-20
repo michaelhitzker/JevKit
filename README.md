@@ -49,7 +49,7 @@ For a published repository, use `.package(url: "<YOUR-JEVKIT-REPOSITORY-URL>", f
 
 ## Get an API key
 
-Request early access through [TypeSafe](https://typesafe.ai), then obtain a key from the [TypeSafe console](https://console.typesafe.ai). Access is subject to TypeSafe's current availability. The official SDK environment variable is `TYPESAFE_API_KEY`; JevKit takes credentials explicitly. Our example and opt-in integration test use `JEV_API_KEY`:
+Request early access through [TypeSafe](https://typesafe.ai), then obtain a key from the [TypeSafe console](https://console.typesafe.ai). Access is subject to TypeSafe's current availability. `JevClient()` reads the official SDK environment variable, `TYPESAFE_API_KEY`. Our CLI example and opt-in integration test use `JEV_API_KEY`:
 
 ```sh
 # Set JEV_API_KEY through your shell or secret manager, then:
@@ -57,6 +57,64 @@ swift run JevKitExample
 ```
 
 Calls in the examples require a valid key and may incur TypeSafe usage charges. Unit tests and the local HTTP fixture require no key.
+
+## Initialize with an API key
+
+Pass a key directly, select an existing environment variable, or load a plist:
+
+```swift
+import Foundation
+import JevKit
+
+// Direct value, such as a credential supplied by your application.
+let direct = try JevClient(apiKey: "your-api-key")
+
+// Reads TYPESAFE_API_KEY from the current process environment.
+let environment = try JevClient()
+let customEnvironment = try JevClient(apiKeySource: .environment("JEV_API_KEY"))
+
+// Reads the JEV_API_KEY string in Bundle.main's Info.plist.
+let infoPlist = try JevClient(apiKeySource: .infoPlist())
+// Custom plist entry and bundle are also supported.
+let customInfo = try JevClient(apiKeySource: .infoPlist(key: "TypeSafeKey", bundle: .main))
+
+// Reads an XML or binary plist from a local file URL.
+let file = URL(fileURLWithPath: "/path/to/JevSecrets.plist")
+let separatePlist = try JevClient(apiKeySource: .plist(url: file))
+// Use .plist(url: file, key: "TypeSafeKey") for a custom entry name.
+```
+
+For `Info.plist`, add a **String** entry named `JEV_API_KEY` under the Xcode app target's **Info → Custom Target Properties**. A separate `JevSecrets.plist` has this structure:
+
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>JEV_API_KEY</key>
+    <string>your-api-key</string>
+</dict>
+</plist>
+```
+
+If the file is an app resource, obtain its URL with `Bundle.main.url(forResource: "JevSecrets", withExtension: "plist")` and handle a missing file before initialization. Only local file URLs are accepted. Plist entries are top-level, unlocalized strings.
+
+Source-based configuration also works with custom settings and injected transports:
+
+```swift
+let configuration = try JevConfiguration(
+    apiKeySource: .environment("JEV_API_KEY"),
+    timeout: .seconds(15),
+    retryPolicy: .init(maximumRetries: 0)
+)
+let client = try JevClient(configuration: configuration)
+```
+
+The selected source is read once during construction. There is no implicit fallback between environment variables or plists. Missing values, non-string plist entries, whitespace, unresolved build-variable placeholders, and unreadable or malformed files throw `JevError.invalidConfiguration` before a request is sent. Diagnostics omit credential values and file paths.
+
+Environment loading reads the running process's environment; it does not parse `.env` files or automatically import your shell's environment into an Xcode-launched app. Set a variable in **Edit Scheme → Run → Arguments → Environment Variables**, or launch your executable from a process that already exports it.
+
+Direct strings and bundled plists do not secure a secret in a distributed app. Keep real credentials out of source control and use a backend to hold production consumer-app secrets.
 
 ## Noul: yes/no probability
 
@@ -302,6 +360,8 @@ Load server keys from a secret manager or environment, keep them out of source c
 ## Example, documentation, and architecture
 
 [The issue-triage CLI](Sources/JevKitExample/main.swift) asks about bugs, duplicates, priority, urgency, and human review in one request. Its `route` function demonstrates deterministic policy separately from model evaluation. [Examples](Examples/README.md) explains how to run and adapt it.
+
+The [SwiftUI example app](Examples/ExampleApp/ExampleApp.xcodeproj) includes interactive Noul, Choice, Score, and typed assessment examples with Swift usage snippets. Run offline fixtures immediately, or opt into live evaluation with a direct key, environment variable, or plist. See the [app setup and checks](Examples/README.md#swiftui-example-app).
 
 - `Questions` / `Results`: public, immutable Sendable values and validation.
 - `Internal`: Codable HTTP DTOs, contract checks, redaction and retry parsing.
