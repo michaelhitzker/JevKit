@@ -18,6 +18,9 @@ func invalidStateNeverSends(_ state: JevValue) async throws {
     #expect(await transport.requests.isEmpty)
 }
 
+// Keep closure expressions outside @Test arguments: Swift 6.0.3 crashes expanding them.
+private let oversizedChoiceCriteria = Dictionary(uniqueKeysWithValues: (0...255).map { (String($0), JevValue.null) })
+
 @Test(arguments: [
     JevQuestion.noul(id: " ", question: "Question"),
     .noul(id: "x", question: " \n"),
@@ -29,7 +32,7 @@ func invalidStateNeverSends(_ state: JevValue) async throws {
     .score(id: "x", question: "Question", levels: ["One"]),
     .score(id: "x", question: "Question", levels: ["", "Two"]),
     .score(id: "x", question: "Question", levels: Array(repeating: "Level", count: 11)),
-    .choice(id: "x", question: "Question", criteria: Dictionary(uniqueKeysWithValues: (0...255).map { (String($0), JevValue.null) }))
+    .choice(id: "x", question: "Question", criteria: oversizedChoiceCriteria)
 ])
 func invalidQuestionsNeverSend(_ question: JevQuestion) async throws {
     let transport = StubTransport([])

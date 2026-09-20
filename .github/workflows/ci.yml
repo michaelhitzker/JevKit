@@ -1,20 +1,33 @@
-name: Swift
+name: CI
 on:
   push:
+    branches: [main]
   pull_request:
+  merge_group:
+  workflow_dispatch:
+  workflow_call:
 permissions:
   contents: read
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+env:
+  JEV_API_KEY: ""
+  TYPESAFE_API_KEY: ""
 jobs:
   test:
     name: Swift ${{ matrix.swift }} / ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 25
     strategy:
       fail-fast: false
       matrix:
         os: [macos-14, ubuntu-24.04]
-        swift: ["6.0.3", "6.2.3"]
+        swift: ["6.0.3", "6.2.1"]
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
       - uses: swift-actions/setup-swift@7591e4f04c00624cb043783da51a7fd6ee0a6bf6 # v2
         with:
           swift-version: ${{ matrix.swift }}
@@ -26,3 +39,14 @@ jobs:
       - name: Build DocC
         if: runner.os == 'macOS'
         run: bash Scripts/build-docs.sh
+
+  checks:
+    name: All checks passed
+    if: ${{ always() }}
+    needs: [test]
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Require the entire matrix to pass
+        env:
+          TEST_RESULT: ${{ needs.test.result }}
+        run: test "$TEST_RESULT" = success
