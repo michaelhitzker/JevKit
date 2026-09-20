@@ -1,0 +1,28 @@
+name: Swift
+on:
+  push:
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  test:
+    name: Swift ${{ matrix.swift }} / ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-14, ubuntu-24.04]
+        swift: ["6.0.3", "6.2.3"]
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: swift-actions/setup-swift@7591e4f04c00624cb043783da51a7fd6ee0a6bf6 # v2
+        with:
+          swift-version: ${{ matrix.swift }}
+      - run: swift --version
+      - run: swift build -Xswiftc -warnings-as-errors
+      - run: swift test -Xswiftc -warnings-as-errors
+      - run: python3 Scripts/test-http.py
+      - run: swift build -c release -Xswiftc -warnings-as-errors
+      - name: Build DocC
+        if: runner.os == 'macOS'
+        run: bash Scripts/build-docs.sh

@@ -1,32 +1,18 @@
-// swift-tools-version: 6.4
-// The swift-tools-version declares the minimum version of Swift required to build this package.
-
+// swift-tools-version: 6.0
 import PackageDescription
 
 let package = Package(
     name: "JevKit",
+    platforms: [.macOS(.v13), .iOS(.v16), .tvOS(.v16), .watchOS(.v9), .visionOS(.v1)],
     products: [
-        // Products define the executables and libraries a package produces, making them visible to other packages.
-        .library(
-            name: "JevKit",
-            targets: ["JevKit"]
-        ),
+        .library(name: "JevKit", targets: ["JevKit"]),
+        .executable(name: "JevKitExample", targets: ["JevKitExample"])
     ],
     targets: [
-        // Targets are the basic building blocks of a package, defining a module or a test suite.
-        // Targets can depend on other targets in this package and products from dependencies.
-        .target(
-            name: "JevKit",
-            swiftSettings: [
-                .enableUpcomingFeature("ApproachableConcurrency"),
-            ],
-        ),
-        .testTarget(
-            name: "JevKitTests",
-            dependencies: ["JevKit"],
-            swiftSettings: [
-                .enableUpcomingFeature("ApproachableConcurrency"),
-            ],
-        ),
-    ]
+        .target(name: "JevKit"),
+        .executableTarget(name: "JevKitExample", dependencies: ["JevKit"]),
+        .testTarget(name: "JevKitTests", dependencies: ["JevKit"]),
+        .testTarget(name: "JevKitIntegrationTests", dependencies: ["JevKit"])
+    ],
+    swiftLanguageModes: [.v6]
 )

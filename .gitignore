@@ -1,8 +1,44 @@
+# macOS
 .DS_Store
-/.build
-/Packages
-xcuserdata/
+.AppleDouble
+._*
+
+# Swift Package Manager build output and generated local workspace
+/.build/
+/.swiftpm/
+/Packages/
+# Libraries let consuming applications resolve their own dependency versions.
+Package.resolved
+
+# Xcode user state, build output, and test results
 DerivedData/
-.swiftpm/configuration/registries.json
-.swiftpm/xcode/package.xcworkspace/contents.xcworkspacedata
+build/
+xcuserdata/
+*.xcuserstate
+*.xccheckout
+*.xcscmblueprint
+*.xcresult/
+*.xcarchive/
+*.dSYM/
+*.dSYM.zip
+
+# Generated DocC archives (keep source .docc catalogs)
+*.doccarchive/
+
+# Local credentials and environment files
+.env
+.env.*
+!.env.example
+!.env.sample
+!.env.template
 .netrc
+
+# Python caches from development scripts
+__pycache__/
+*.py[cod]
+.venv/
+
+# Editor temporary files
+*.swp
+*.swo
+*~
