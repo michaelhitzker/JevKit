@@ -28,7 +28,7 @@ jobs:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           persist-credentials: false
-      - uses: swift-actions/setup-swift@7591e4f04c00624cb043783da51a7fd6ee0a6bf6 # v2
+      - uses: swift-actions/setup-swift@7ca6abe6b3b0e8b5421b88be48feee39cbf52c6a # v2
         with:
           swift-version: ${{ matrix.swift }}
       - run: swift --version
